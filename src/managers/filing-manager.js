@@ -1,5 +1,7 @@
 const request = require('request');
 const { promisify } = require('util');
+const { readFile } = require('fs');
+const { parseString } = require('xml2js');
 
 const requestAsync = promisify(request);
 const readFileAsync = promisify(readFile);
