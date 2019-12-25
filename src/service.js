@@ -1,4 +1,4 @@
-const { EventFramework, Subscription } = require('@postilion/event-framework');
+const { EventFramework } = require('@postilion/event-framework');
 const subscriptions = require('./subscriptions');
 
 // todo: replace with config values
