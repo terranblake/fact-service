@@ -7,7 +7,7 @@ const requestAsync = promisify(request);
 const readFileAsync = promisify(readFile);
 const parseStringAsync = promisify(parseString);
 
-const { enums, logger } = require('@postilion/utils');
+const { enums, logger, parserOptions } = require('@postilion/utils');
 const { filingDocumentParsingOrder } = enums;
 
 const filingDocumentParsers = require('../utils/filing-document-parsers');
@@ -45,7 +45,7 @@ class FilingManager {
 			}
 
 			for (let document of filteredDocuments) {
-				await this.getFactsFromFilingDocument(document._id);
+				await FilingManager.prototype.getFactsFromFilingDocument(document._id);
 			}
 		}
 
@@ -66,11 +66,12 @@ class FilingManager {
 			// otherwise download the document again
 		} else {
 			logger.info(`filingDocument ${_id} downloaded from source since it has not been downloaded company ${company} filing ${filing}`);
-			elements = await requestAsync({ url: fileUrl, method: 'GET' });
+			const response = await requestAsync({ url: fileUrl, method: 'GET' });
+			elements = response.body;
 		}
 		
 		await FilingDocument.findOneAndUpdate({ _id }, { status: 'crawling' });
-		elements = await parseStringAsync(elements, filingDocumentParserOptions);
+		elements = await parseStringAsync(elements, parserOptions.filingDocument);
 
 		// get the parser associated with the type of filing document
 		const filingDocumentParser = filingDocumentParsers[type];
