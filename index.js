@@ -1,6 +1,2 @@
-const mongoose = require('mongoose');
-
-mongoose.connect('mongodb://localhost/postilion');
-mongoose.connection.on('connected', () => {
-	require('./src/service');
-});
+require('@postilion/storage').open(['mongodb']);
+require('./src/service');

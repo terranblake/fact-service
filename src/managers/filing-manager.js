@@ -20,11 +20,11 @@ class FilingManager {
 	// lookup all filing documents and parse facts
 	// from each as necessary
 	async getFactsFromFiling(job) {
-		const { _id } = job.fullDocument;
+		const { _id } = job.data;
 
 		const documents = await FilingDocument
 			.find({
-				filing: _id.toString(),
+				filing: _id,
 				type: { $in: Object.keys(filingDocumentParsers) }
 			})
 			.lean();

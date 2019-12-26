@@ -1,18 +1,20 @@
 {
-  "name": "@postilion/fact-template",
+  "name": "@postilion/fact-service",
   "version": "1.0.0",
   "description": "#### Handles jobs for everything fact-related; extracting facts from filings and mapping them to taxonomy tree are the most likely types of jobs for this service",
   "main": "index.js",
   "scripts": {
+    "clean": "rm -rf node_modules && rm package-lock.json && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@postilion/event-framework": "^1.3.5",
-    "@postilion/models": "^1.1.3",
-    "@postilion/utils": "^1.1.8",
+    "@postilion/event-framework": "github:terranblake/event-framework#master",
+    "@postilion/models": "github:terranblake/models#master",
+    "@postilion/utils": "github:terranblake/utils#master",
+    "@postilion/storage": "github:terranblake/storage#master",
     "request": "^2.88.0",
     "xml2js": "^0.4.23"
   }

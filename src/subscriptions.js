@@ -22,12 +22,10 @@ module.exports = [
 				// the seeded status just means that we found everything
 				// related to this model that needs to be found
 				$match: {
-					'fullDocument.status': 'seeded'
+					status: 'seeded'
 				}
 			}
 		],
-		options: {
-			fullDocument: 'updateLookup'
-		},
+		options: {},
 	}
 ];
