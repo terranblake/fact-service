@@ -1,6 +1,6 @@
 {
   "name": "@postilion/fact-service",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "#### Handles jobs for everything fact-related; extracting facts from filings and mapping them to taxonomy tree are the most likely types of jobs for this service",
   "main": "index.js",
   "scripts": {
