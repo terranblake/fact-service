@@ -111,7 +111,8 @@ function normalizeFact(fact) {
         unitRef
     } = fact['$'];
 
-    const factSignum = signum(decimals);
+    // todo: breaking this because the stupid maths module from utils isnt update correctly in the heroku container
+    const factSignum = false;
     value = decimals
         && magnitude(fact['_'], decimals, factSignum)
         || fact['_'];
