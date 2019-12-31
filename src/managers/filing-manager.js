@@ -20,7 +20,7 @@ class FilingManager {
 	// lookup all filing documents and parse facts
 	// from each as necessary
 	async getFactsFromFiling(job) {
-		const { _id } = job.data;
+		const { _id, company } = job.data;
 
 		const documents = await FilingDocument
 			.find({
@@ -29,7 +29,8 @@ class FilingManager {
 			})
 			.lean();
 
-		let crawledDocuments = [];
+		
+		logger.info(`found ${documnts.length} documents from filing ${_id} company ${company}`)
 
 		// iterate through filing documents in order of document
 		// requirements enforced by the parsing order enum
@@ -48,8 +49,6 @@ class FilingManager {
 				await FilingManager.prototype.getFactsFromFilingDocument(document._id);
 			}
 		}
-
-		return crawledDocuments;
 	}
 
 	// singular form of getFactsFromFiling. simply gets all of the facts
