@@ -29,7 +29,6 @@ class FilingManager {
 			})
 			.lean();
 
-		
 		logger.info(`found ${documents && documents.length} documents from filing ${_id} company ${company}`)
 
 		// iterate through filing documents in order of document
