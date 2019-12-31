@@ -12,7 +12,7 @@ const { filingDocumentParsingOrder } = enums;
 
 const filingDocumentParsers = require('../utils/filing-document-parsers');
 
-const { FilingDocument } = require('@postilion/models');
+const { Filing, FilingDocument } = require('@postilion/models');
 
 class FilingManager {
 	constructor() { }
@@ -21,7 +21,8 @@ class FilingManager {
 	// from each as necessary
 	async getFactsFromFiling(job) {
 		const { _id, company } = job.data;
-
+		
+		await Filing.findOneAndUpdate({ _id }, { status: 'crawling' });
 		const documents = await FilingDocument
 			.find({
 				filing: _id,
@@ -48,6 +49,8 @@ class FilingManager {
 				await FilingManager.prototype.getFactsFromFilingDocument(document._id);
 			}
 		}
+
+		await Filing.findOneAndUpdate({ _id }, { status: 'crawled' });
 	}
 
 	// singular form of getFactsFromFiling. simply gets all of the facts
