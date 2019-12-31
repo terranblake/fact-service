@@ -30,7 +30,7 @@ class FilingManager {
 			.lean();
 
 		
-		logger.info(`found ${documnts.length} documents from filing ${_id} company ${company}`)
+		logger.info(`found ${documents && documents.length} documents from filing ${_id} company ${company}`)
 
 		// iterate through filing documents in order of document
 		// requirements enforced by the parsing order enum
