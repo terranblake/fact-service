@@ -77,7 +77,6 @@ class FilingManager {
 
 		const updatedDocument = await FilingDocument.findOneAndUpdate({ _id }, { status: 'crawled' });
 		logger.info(`finished crawling filingDocument ${updatedDocument._id} for facts company ${company} filing ${filing}`);
-		return updatedDocument;
 	}
 }
 

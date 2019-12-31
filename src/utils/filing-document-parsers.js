@@ -18,6 +18,7 @@ module.exports = {
         const formattedContexts = await formatContexts(rawContexts);
 
         const newFacts = await formatFacts(elements, formattedContexts, formattedUnits, filingId, company);
+        logger.info(`found ${newFacts && newFacts.length} new facts from filing ${filing} company ${company}`);
         for (let fact of newFacts) {
             await Fact.create(fact);
         }
