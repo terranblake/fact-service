@@ -66,7 +66,7 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
     for (let fact of facts) {
         const { unitRef, contextRef, value, signum } = await normalizeFact(fact);
 
-        const unit = await units.find(u => u.identifier === unitRef || (factCurrencies.map(c => c.toLowerCase()).includes(unitRef.toLowerCase()) || u.identifier === 'usd'));
+        const unit = await units.find(u => u.name === unitRef || (factCurrencies.map(c => c.toLowerCase()).includes(unitRef && unitRef.toLowerCase()) || u.name && u.name.toLowerCase() === 'usd'));
         if (!unit) {
             logger.error(`missing unit for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
             continue;
@@ -97,7 +97,7 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
             logger.error(`missing fields for fact identifier ${identifierName} filing ${filing}`);
         }
 
-        logger.info(`formatted fact unit ${unit && unit.identifier} identifier ${identifierName} context ${context && context.label} filing ${filing}`);
+        logger.info(`formatted fact unit ${unit && unit.name} identifier ${identifierName} context ${context && context.label} filing ${filing}`);
         updatedFacts.push(fact);
     };
 
@@ -153,6 +153,11 @@ module.exports.formatUnits = (rawUnits) => {
         if (type === 'measure') {
             const [prefix, name] = unit[0].split(':');
             formattedUnit.calculation = [{ prefix, name }];
+
+            // fixme: setting this name here explicitly without checking anything else assigns
+            // incorrect values to facts. it's probably time to rewrite all of the fact parsing
+            // logic since this was written more than 6 months ago and is clearly not working
+            formattedUnit.name = name;
         } else {
             const measureKey = typeIncludesColon ? 'xbrli:measure' : 'measure';
 

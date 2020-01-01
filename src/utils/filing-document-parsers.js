@@ -1,4 +1,5 @@
 const { Fact, Link } = require('@postilion/models');
+const { logger } = require('@postilion/utils');
 
 const {
     formatFacts,
@@ -18,7 +19,7 @@ module.exports = {
         const formattedContexts = await formatContexts(rawContexts);
 
         const newFacts = await formatFacts(elements, formattedContexts, formattedUnits, filingId, company);
-        logger.info(`found ${newFacts && newFacts.length} new facts from filing ${filing} company ${company}`);
+        logger.info(`found ${newFacts && newFacts.length} new facts from filing ${filingId} company ${company}`);
         for (let fact of newFacts) {
             await Fact.create(fact);
         }
