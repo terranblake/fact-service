@@ -20,7 +20,7 @@ class FilingManager {
 	// lookup all filing documents and parse facts
 	// from each as necessary
 	async getFactsFromFiling(job) {
-		const { _id, company } = job.data;
+		const { _id, company, refId } = job.data;
 		
 		await Filing.findOneAndUpdate({ _id }, { status: 'crawling' });
 		const documents = await FilingDocument
@@ -61,7 +61,7 @@ class FilingManager {
 		let elements;
 
 		// read from local archive if exists
-		if (['downloaded', 'crawled'].includes(status)) {
+		if (process.env.ARCHIVE_LOCATION && ['downloaded', 'crawled'].includes(status)) {
 			logger.info(`filingDocument ${_id} loaded from local archive since it has been downloaded company ${company} filing ${filing}`);
 			elements = await readFileAsync(statusReason);
 			// otherwise download the document again

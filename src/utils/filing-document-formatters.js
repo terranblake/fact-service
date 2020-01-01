@@ -30,15 +30,13 @@ module.exports.formatFacts = async (unformattedFacts, contexts, units, filing, c
 
         // get the gaap identifier name
         identifierName = fact.substr(fact.indexOf(':') + 1);
-
         const identifierExists = await Identifier.findOne({ name: identifierName });
 
-        let link;
+        const link = await Link.findOne({ filing, company, name: identifierName });
         if (!identifierExists) {
             logger.error(`no identifier found for ${fact} searching links company ${company} filing ${filing}`);
 
             // fall back on link definitions if an identifier isn't found
-            link = await Link.findOne({ filing, company, name: identifierName });
             if (!link) {
                 continue;
             }
@@ -66,16 +64,31 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
     for (let fact of facts) {
         const { unitRef, contextRef, value, signum } = await normalizeFact(fact);
 
-        const unit = await units.find(u => u.name === unitRef || (factCurrencies.map(c => c.toLowerCase()).includes(unitRef && unitRef.toLowerCase()) || u.name && u.name.toLowerCase() === 'usd'));
+        if (!unitRef) {
+            logger.debug(`missing unitRef while formatting fact with context ${contextRef} value ${value}. skipping!`);
+            continue;
+        }
+
+        const unit = await units.find(u => [u.name, u.type, u.id, ...factCurrencies].includes(unitRef));
         if (!unit) {
-            logger.error(`missing unit for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
+            logger.debug(`missing unit for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
             continue;
         }
 
         const context = contexts.find(c => c.label === contextRef);
         if (!context) {
-            logger.error(`missing context for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
+            logger.debug(`missing context for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
             continue;
+        }
+
+        // use the identifier name as a reference to the correct
+        // identifier being referenced for this fact
+        // todo: validate that this works or use a cached version
+        // of the gaap identifier tree to quickly lookup if the identifier
+        // would be missing when building the tree and if replacing this
+        // would actually improve the coverage of identifiers
+        if (link && link.type === 'locator' && link.to.name !== identifierName) {
+            identifierName = link.to.name;
         }
 
         fact = {
@@ -85,7 +98,9 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
             date: context.date,
             itemType: unit.type,
             value,
-            link,
+            unit: unit.name || 'n/a',
+            calculation: unit.calculation,
+            link: link && link._id,
             segment: context.segment,
             label: fact.label || fact.name,
             // todo :: Get balance for facts (debit, credit)
@@ -118,7 +133,7 @@ function normalizeFact(fact) {
 
     return {
         value,
-        contextRef,
+        contextRef: contextRef && contextRef.toLowerCase(),
         unitRef: unitRef && unitRef.replace('iso4217_', '').toLowerCase(),
         decimals,
         signum: factSignum,
@@ -130,7 +145,7 @@ module.exports.formatUnits = (rawUnits) => {
 
     let formattedUnits = []
     for (let rawUnit of rawUnits) {
-        const name = rawUnit.$.id;
+        const id = rawUnit.$.id && rawUnit.$.id.toLowerCase();
 
         let type;
         let rawType = Object.keys(rawUnit).find(u => u.includes('xbrli:') || supportedUnitTypes.includes(u));
@@ -145,7 +160,10 @@ module.exports.formatUnits = (rawUnits) => {
 
         let unit = rawUnit[rawType];
         let formattedUnit = {
-            name,
+            id,
+            // override this for simple measure unit types
+            // when we split the unit identifier into prefix and name
+            name: id,
             type,
             calculation: []
         };
@@ -153,11 +171,7 @@ module.exports.formatUnits = (rawUnits) => {
         if (type === 'measure') {
             const [prefix, name] = unit[0].split(':');
             formattedUnit.calculation = [{ prefix, name }];
-
-            // fixme: setting this name here explicitly without checking anything else assigns
-            // incorrect values to facts. it's probably time to rewrite all of the fact parsing
-            // logic since this was written more than 6 months ago and is clearly not working
-            formattedUnit.name = name;
+            formattedUnit.name = name && name.toLowerCase();
         } else {
             const measureKey = typeIncludesColon ? 'xbrli:measure' : 'measure';
 
@@ -208,7 +222,7 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
             && formatContextSegment(rawSegment[0]);
 
         formattedContexts.push({
-            label: context['$'].id,
+            label: context['$'].id && context['$'].id.toLowerCase(),
             filing,
             company,
             segment,
@@ -278,14 +292,10 @@ function formatContextSegment(segment = {}) {
     return formattedSegment;
 }
 
-module.exports.formatCalculationLink = (rawLink) => {
-    const linkRole = rawLink.$['xlink:role'];
-    const name = linkRole.split('/').pop();
+module.exports.formatCalculationArcs = (name, arcs) => {
+    let formattedArcs = [];
 
-    let formattedLinks = [];
-
-    const calculationArcs = rawLink['link:calculationArc'] || [];
-    for (let arc of calculationArcs) {
+    for (let arc of arcs) {
         arc = arc.$;
         const roleArc = arc['xlink:arcrole'].split('/').pop();
         const type = arc['xlink:type'];
@@ -296,7 +306,7 @@ module.exports.formatCalculationLink = (rawLink) => {
         const [, toPrefix, toName] = arc['xlink:to'].split('_');
         const { order, weight } = arc;
 
-        formattedLinks.push({
+        formattedArcs.push({
             name: toName,
             role: {
                 name,
@@ -316,5 +326,41 @@ module.exports.formatCalculationLink = (rawLink) => {
         });
     }
 
-    return formattedLinks;
+    return formattedArcs;
+}
+
+module.exports.formatCalculationLocators = (name, locators) => {
+    let formattedLocators = [];
+
+    for (let locator of locators) {
+        locator = locator.$;
+
+        const type = locator['xlink:type'];
+        const [fromPrefix, fromName] = locator['xlink:href'].split('#').pop().split('_');
+        const [, toPrefix, toName,] = locator['xlink:label'].split('_');
+
+        formattedLocators.push({
+            name: fromName,
+            role: {
+                name,
+                // todo: figure out if this is necessary for looking up items
+                // arc: roleArc
+            },
+            to: {
+                prefix: toPrefix,
+                name: toName
+            },
+            from: {
+                prefix: fromPrefix,
+                name: fromName
+            },
+            // todo: lookup the corresponding toName identifier and spread that
+            // identifier into this link
+            // order,
+            // weight,
+            type
+        })
+    }
+
+    return formattedLocators;
 }

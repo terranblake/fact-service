@@ -5,7 +5,8 @@ const {
     formatFacts,
     formatUnits,
     formatContexts,
-    formatCalculationLink
+    formatCalculationArcs,
+    formatCalculationLocators
 } = require('./filing-document-formatters');
 
 module.exports = {
@@ -32,19 +33,22 @@ module.exports = {
         let formattedLinks = [];
         const calculationLinks = elements['link:calculationLink'] || elements.calculationLink;
         for (let link of calculationLinks) {
-            // get calculation arcs and skip this link if there aren't any
-            // defined because all we want are the arcs between identfiiers
-            const calculationArcs = link['link:calculationArc'] || [];
-            if (!calculationArcs || !calculationArcs.length) {
-                continue;
-            }
+            const linkRole = link.$['xlink:role'];
+            const name = linkRole.split('/').pop();
 
-            const formattedCalculationLinks = formatCalculationLink(link);
-            formattedLinks = formattedLinks.concat(formattedCalculationLinks);
+            // format calculation arcs
+            const arcs = link['link:calculationArc'] || [];
+            const formattedCalculationArcs = formatCalculationArcs(name, arcs);
+            formattedLinks = formattedLinks.concat(formattedCalculationArcs);
+
+            // format calculation locators
+            const locators = link['link:loc'] || [];
+            const formattedCalculationLocators = formatCalculationLocators(name, locators);
+            formattedLinks = formattedLinks.concat(formattedCalculationLocators);
         }
 
         for (let link of formattedLinks) {
-            await Link.create({ ...link, filing, company,  });
+            await Link.create({ ...link, filing, company });
         }
 
         return formattedLinks;
