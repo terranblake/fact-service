@@ -20,7 +20,7 @@ class FilingManager {
 	// lookup all filing documents and parse facts
 	// from each as necessary
 	async getFactsFromFiling(job) {
-		const { _id, company, refId } = job.data;
+		const { _id, company } = job.data;
 		
 		await Filing.findOneAndUpdate({ _id }, { status: 'crawling' });
 		const documents = await FilingDocument

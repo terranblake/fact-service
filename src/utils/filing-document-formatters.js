@@ -32,9 +32,16 @@ module.exports.formatFacts = async (unformattedFacts, contexts, units, filing, c
         identifierName = fact.substr(fact.indexOf(':') + 1);
         const identifierExists = await Identifier.findOne({ name: identifierName });
 
-        const link = await Link.findOne({ filing, company, name: identifierName });
+        let link;
+
         if (!identifierExists) {
             logger.error(`no identifier found for ${fact} searching links company ${company} filing ${filing}`);
+
+            link = await Link.findOne({
+                filing,
+                company,
+                name: identifierName,
+            });
 
             // fall back on link definitions if an identifier isn't found
             if (!link) {
@@ -87,9 +94,9 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
         // of the gaap identifier tree to quickly lookup if the identifier
         // would be missing when building the tree and if replacing this
         // would actually improve the coverage of identifiers
-        if (link && link.type === 'locator' && link.to.name !== identifierName) {
-            identifierName = link.to.name;
-        }
+        // if (link && link.to.name !== identifierName) {
+        //     identifierName = link.to.name;
+        // }
 
         fact = {
             filing,
