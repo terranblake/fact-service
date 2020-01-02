@@ -120,7 +120,7 @@ async function expandAndFormatLikeFacts(facts, contexts, units, filing, company,
             logger.error(`missing fields for fact identifier ${identifierName} filing ${filing}`);
         }
 
-        logger.info(`formatted fact unit ${unit && unit.name} identifier ${identifierName} context ${context && context.label} filing ${filing}`);
+        logger.debug(`formatted fact unit ${unit && unit.name} identifier ${identifierName} context ${context && context.label} filing ${filing}`);
         updatedFacts.push(fact);
     };
 
