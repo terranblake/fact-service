@@ -40,6 +40,7 @@ module.exports.formatFacts = async (unformattedFacts, contexts, units, filing, c
             link = await Link.findOne({
                 filing,
                 company,
+                type: 'arc',
                 name: identifierName,
             });
 
@@ -243,10 +244,6 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
 function formatContextDate(contextPeriod) {
     if (!contextPeriod) {
         throw new Error('context period is missing');
-    }
-
-    if (!Object.keys(contextPeriod)) {
-        console.log({ contextPeriod });
     }
 
     const rawDateType = Object.keys(contextPeriod)[0].includes('instant') ? 'instant' : 'series';
