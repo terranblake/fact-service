@@ -35,7 +35,7 @@ module.exports.formatFacts = async (unformattedFacts, contexts, units, filing, c
         let link;
 
         if (!identifierExists) {
-            logger.error(`no identifier found for ${fact} searching links company ${company} filing ${filing}`);
+            logger.debug(`no identifier found for ${fact} searching links company ${company} filing ${filing}`);
 
             link = await Link.findOne({
                 filing,
