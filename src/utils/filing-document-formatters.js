@@ -18,120 +18,28 @@ const {
     getQuarterReported
 } = dateTypes;
 
-module.exports.formatFacts = async (unformattedFacts, contexts, units, filing, company) => {
-    let expandedFacts = [];
+module.exports.formatFacts = async (elements, contexts, units, filing, company) => {
+    let formattedFacts = [];
 
-    for (let fact in unformattedFacts) {
-        // we only want facts we can process
-        if (!identifierPrefixes.find(p => fact.includes(p))) {
-            logger.error(`no valid prefix found for fact grouping ${fact}`);
+    for (let element in elements) {
+        if (!element.includes(':')) {
+            logger.error(`unable to parse facts from element ${element} because it has no prefix`);
             continue;
         }
 
-        // get the gaap identifier name
-        identifierName = fact.substr(fact.indexOf(':') + 1);
-        const identifierExists = await Identifier.findOne({ name: identifierName });
-
-        let link;
-
-        if (!identifierExists) {
-            logger.debug(`no identifier found for ${fact} searching links company ${company} filing ${filing}`);
-
-            link = await Link.findOne({
-                filing,
-                company,
-                type: 'arc',
-                name: identifierName,
-            });
-
-            // fall back on link definitions if an identifier isn't found
-            if (!link) {
-                continue;
-            }
-        }
-
-        const likeFacts = await expandAndFormatLikeFacts(unformattedFacts[fact], contexts, units, filing, company, identifierName, link);
-        if (!likeFacts.length) {
-            if (fact.includes('gaap')) {
-                logger.info(`identifier with name ${identifierName} was a gaap identifier with no valid facts`);
-            }
-            continue;
-        }
-
-        for (let formatted of likeFacts) {
-            expandedFacts.push(formatted);
-        }
+        const facts = elements[element].map(e => formatFact(e, element, contexts, filing, company));
+        formattedFacts = formattedFacts.concat(facts);
     }
 
-    return expandedFacts;
+    return formattedFacts;
 }
 
-async function expandAndFormatLikeFacts(facts, contexts, units, filing, company, identifierName, link) {
-    let updatedFacts = [];
-
-    for (let fact of facts) {
-        const { unitRef, contextRef, value, signum } = await normalizeFact(fact);
-
-        if (!unitRef) {
-            logger.debug(`missing unitRef while formatting fact with context ${contextRef} value ${value}. skipping!`);
-            continue;
-        }
-
-        const unit = await units.find(u => [u.name, u.type, u.id, ...factCurrencies].includes(unitRef));
-        if (!unit) {
-            logger.debug(`missing unit for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
-            continue;
-        }
-
-        const context = contexts.find(c => c.label === contextRef);
-        if (!context) {
-            logger.debug(`missing context for fact identifier ${identifierName} unitRef ${unitRef} filing ${filing}`);
-            continue;
-        }
-
-        // use the identifier name as a reference to the correct
-        // identifier being referenced for this fact
-        // todo: validate that this works or use a cached version
-        // of the gaap identifier tree to quickly lookup if the identifier
-        // would be missing when building the tree and if replacing this
-        // would actually improve the coverage of identifiers
-        // if (link && link.to.name !== identifierName) {
-        //     identifierName = link.to.name;
-        // }
-
-        fact = {
-            filing,
-            company,
-            name: identifierName,
-            date: context.date,
-            itemType: unit.type,
-            value,
-            unit: unit.name || 'n/a',
-            calculation: unit.calculation,
-            link: link && link._id,
-            segment: context.segment,
-            label: fact.label || fact.name,
-            // todo :: Get balance for facts (debit, credit)
-            // balance: context.balance,
-            sign: signum === '+',
-        };
-
-        if (!fact.filing) {
-            logger.error(`missing fields for fact identifier ${identifierName} filing ${filing}`);
-        }
-
-        logger.debug(`formatted fact unit ${unit && unit.name} identifier ${identifierName} context ${context && context.label} filing ${filing}`);
-        updatedFacts.push(fact);
-    };
-
-    return updatedFacts;
-}
-
-function normalizeFact(fact) {
+function formatFact(fact, element, contexts, filing, company) {
     const {
         decimals,
         contextRef,
-        unitRef
+        unitRef,
+        label,
     } = fact['$'];
 
     const factSignum = signum(decimals);
@@ -139,13 +47,40 @@ function normalizeFact(fact) {
         && magnitude(fact['_'], decimals, factSignum)
         || fact['_'];
 
-    return {
-        value,
-        contextRef: contextRef && contextRef.toLowerCase(),
-        unitRef: unitRef && unitRef.replace('iso4217_', '').toLowerCase(),
-        decimals,
-        signum: factSignum,
+    const [prefix, name] = element.split(':');
+
+    const context = contexts.find(c => c.label === (contextRef && contextRef.toLowerCase()));
+    if (!context) {
+        logger.error(`missing context for fact identifier ${name} unitRef ${unitRef} filing ${filing}`);
     }
+
+    // const link = await Link.findOne({
+    //     filing,
+    //     company,
+    //     type: 'arc',
+    //     name,
+    // });
+
+    return {
+        filing,
+        company,
+        name,
+        prefix,
+        context: contextRef,
+        date: context && context.date,
+        value,
+        unit: unitRef || 'n/a',
+        // todo: fix unit calculation stuff after all facs are being pulled in correctly again
+        // calculation: unit.calculation,
+        // link: link && link._id,
+        // itemType: unit.type,
+        segment: context && context.segment,
+        label,
+        // todo :: Get balance for facts (debit, credit)
+        // can be looked up from the elements tab of the taxonomy
+        // balance: context.balance,
+        sign: factSignum === '+',
+    };
 }
 
 module.exports.formatUnits = (rawUnits) => {
@@ -296,7 +231,7 @@ function formatContextSegment(segment = {}) {
     return formattedSegment;
 }
 
-module.exports.formatCalculationArcs = (name, arcs) => {
+module.exports.formatLinkbaseArcs = (name, arcs) => {
     let formattedArcs = [];
 
     for (let arc of arcs) {
@@ -333,7 +268,7 @@ module.exports.formatCalculationArcs = (name, arcs) => {
     return formattedArcs;
 }
 
-module.exports.formatCalculationLocators = (name, locators) => {
+module.exports.formatLinkbaseLocators = (name, locators) => {
     let formattedLocators = [];
 
     for (let locator of locators) {

@@ -5,8 +5,8 @@ const {
     formatFacts,
     formatUnits,
     formatContexts,
-    formatCalculationArcs,
-    formatCalculationLocators
+    formatLinkbaseArcs,
+    formatLinkbaseLocators
 } = require('./filing-document-formatters');
 
 module.exports = {
@@ -28,29 +28,42 @@ module.exports = {
         return newFacts;
     },
     calculation: async (elements, filing, company) => {
-        elements = elements['link:linkbase'] || elements.linkbase;
-
-        let formattedLinks = [];
-        const calculationLinks = elements['link:calculationLink'] || elements.calculationLink;
-        for (let link of calculationLinks) {
-            const linkRole = link.$['xlink:role'];
-            const name = linkRole.split('/').pop();
-
-            // format calculation arcs
-            const arcs = link['link:calculationArc'] || [];
-            const formattedCalculationArcs = formatCalculationArcs(name, arcs);
-            formattedLinks = formattedLinks.concat(formattedCalculationArcs);
-
-            // format calculation locators
-            const locators = link['link:loc'] || [];
-            const formattedCalculationLocators = formatCalculationLocators(name, locators);
-            formattedLinks = formattedLinks.concat(formattedCalculationLocators);
-        }
-
-        for (let link of formattedLinks) {
-            await Link.create({ ...link, filing, company });
-        }
-
-        return formattedLinks;
+        return await formatNamedLinkbase(elements, filing, company, 'calculation');
+    },
+    definition: async (elements, filing, company) => {
+        return await formatNamedLinkbase(elements, filing, company, 'definition');
+    },
+    label: async (elements, filing, company) => {
+        return await formatNamedLinkbase(elements, filing, company, 'label');
+    },
+    presentation: async (elements, filing, company) => {
+        return await formatNamedLinkbase(elements, filing, company, 'presentation');
     }
+}
+
+async function formatNamedLinkbase(elements, filing, company, documentType) {
+    elements = elements['link:linkbase'] || elements.linkbase;
+
+    let formattedLinks = [];
+    const links = elements[`link:${documentType}Link`] || elements[`${documentType}Link`];
+    for (let link of links) {
+        const linkRole = link.$['xlink:role'];
+        const name = linkRole.split('/').pop();
+
+        // format calculation arcs
+        const arcs = link[`link:${documentType}Arc`] || [];
+        const formattedArcs = formatLinkbaseArcs(name, arcs);
+        formattedLinks = formattedLinks.concat(formattedArcs);
+
+        // format calculation locators
+        const locators = link['link:loc'] || [];
+        const formattedLocators = formatLinkbaseLocators(name, locators);
+        formattedLinks = formattedLinks.concat(formattedLocators);
+    }
+
+    for (let link of formattedLinks) {
+        await Link.create({ ...link, filing, company, documentType });
+    }
+
+    return formattedLinks;
 }
