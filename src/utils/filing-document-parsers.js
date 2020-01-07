@@ -1,4 +1,4 @@
-const { Fact, Link } = require('@postilion/models');
+const { Fact, Link, Filing } = require('@postilion/models');
 const { logger } = require('@postilion/utils');
 
 const {
@@ -13,11 +13,13 @@ module.exports = {
     instance: async (elements, filingId, company) => {
         elements = elements['xbrli:xbrl'] || elements.xbrl;
 
+        const filing = await Filing.findOne({ _id: filingId });
+
         let rawUnits = elements['xbrli:unit'] || elements.unit;;
         const formattedUnits = formatUnits(rawUnits);
 
         const rawContexts = elements['xbrli:context'] || elements.context;
-        const formattedContexts = await formatContexts(rawContexts);
+        const formattedContexts = await formatContexts(rawContexts, filing);
 
         const newFacts = await formatFacts(elements, formattedContexts, formattedUnits, filingId, company);
         logger.info(`found ${newFacts && newFacts.length} new facts from filing ${filingId} company ${company}`);
@@ -27,18 +29,10 @@ module.exports = {
 
         return newFacts;
     },
-    calculation: async (elements, filing, company) => {
-        return await formatNamedLinkbase(elements, filing, company, 'calculation');
-    },
-    definition: async (elements, filing, company) => {
-        return await formatNamedLinkbase(elements, filing, company, 'definition');
-    },
-    label: async (elements, filing, company) => {
-        return await formatNamedLinkbase(elements, filing, company, 'label');
-    },
-    presentation: async (elements, filing, company) => {
-        return await formatNamedLinkbase(elements, filing, company, 'presentation');
-    }
+    calculation: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'calculation'),
+    definition: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'definition'),
+    label: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'label'),
+    presentation: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'presentation')
 }
 
 async function formatNamedLinkbase(elements, filing, company, documentType) {
@@ -59,6 +53,9 @@ async function formatNamedLinkbase(elements, filing, company, documentType) {
         const locators = link['link:loc'] || [];
         const formattedLocators = formatLinkbaseLocators(name, locators);
         formattedLinks = formattedLinks.concat(formattedLocators);
+
+        logger.info(`found ${formattedArcs.length} new link arcs from documentType ${documentType} filing ${filing} company ${company}`);
+        logger.info(`found ${formattedLocators.length} new link locators from documentType ${documentType} filing ${filing} company ${company}`);
     }
 
     for (let link of formattedLinks) {

@@ -1,16 +1,14 @@
-const { Identifier, Link } = require('@postilion/models');
+const moment = require('moment');
+
 const { enums, logger, dateTypes, maths } = require('@postilion/utils');
+const { Link }= require('@postilion/models');
 
 const {
     magnitude,
     signum
 } = maths;
 
-const {
-    factCurrencies,
-    identifierPrefixes,
-    supportedUnitTypes,
-} = enums;
+const { supportedUnitTypes } = enums;
 
 const {
     getDateType,
@@ -23,43 +21,50 @@ module.exports.formatFacts = async (elements, contexts, units, filing, company) 
 
     for (let element in elements) {
         if (!element.includes(':')) {
-            logger.error(`unable to parse facts from element ${element} because it has no prefix`);
+            logger.debug(`unable to parse facts from element ${element} because it has no prefix`);
             continue;
         }
 
-        const facts = elements[element].map(e => formatFact(e, element, contexts, filing, company));
-        formattedFacts = formattedFacts.concat(facts);
+        for (let fact of elements[element]) {
+            const formattedFact = await formatFact(fact, element, contexts, filing, company);
+            formattedFacts.push(formattedFact);
+        }
     }
 
     return formattedFacts;
 }
 
-function formatFact(fact, element, contexts, filing, company) {
+async function formatFact(fact, element, contexts, filing, company) {
     const {
         decimals,
         contextRef,
         unitRef,
         label,
-    } = fact['$'];
+    } = fact.$;
 
     const factSignum = signum(decimals);
-    value = decimals
-        && magnitude(fact['_'], decimals, factSignum)
-        || fact['_'];
+    const value = decimals
+        && magnitude(fact._, decimals, factSignum)
+        || fact._;
 
-    const [prefix, name] = element.split(':');
+    let [prefix, name] = element.split(':');
 
     const context = contexts.find(c => c.label === (contextRef && contextRef.toLowerCase()));
     if (!context) {
-        logger.error(`missing context for fact identifier ${name} unitRef ${unitRef} filing ${filing}`);
+        logger.debug(`missing context for fact identifier ${name} unitRef ${unitRef} filing ${filing}`);
     }
 
-    // const link = await Link.findOne({
-    //     filing,
-    //     company,
-    //     type: 'arc',
-    //     name,
-    // });
+    const link = await Link.findOne({
+        filing,
+        company,
+        name,
+        type: 'locator',
+        documentType: 'calculation',
+    });
+
+    if (link) {
+        name = link.to.name;
+    }
 
     return {
         filing,
@@ -80,13 +85,13 @@ function formatFact(fact, element, contexts, filing, company) {
         // can be looked up from the elements tab of the taxonomy
         // balance: context.balance,
         sign: factSignum === '+',
+        link: link && link._id,
     };
 }
 
 module.exports.formatUnits = (rawUnits) => {
-    logger.info('formatting units');
+    let formattedUnits = [];
 
-    let formattedUnits = []
     for (let rawUnit of rawUnits) {
         const id = rawUnit.$.id && rawUnit.$.id.toLowerCase();
 
@@ -133,7 +138,6 @@ module.exports.formatUnits = (rawUnits) => {
         formattedUnits.push(formattedUnit);
     }
 
-    logger.info('formatted units');
     return formattedUnits;
 }
 
@@ -149,14 +153,14 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
         const rawSegment = (entity["xbrli:segment"] || entity.segment);
         if (rawSegment && rawSegment.length > 1) {
             logger.error(`more than 1 segment found for filing ${filing._id} company ${company._id}. bailing!`);
-            process.exit(1);
+            continue;
         }
 
-        const date = formatContextDate(period);
+        let date = formatContextDate(period, filing);
 
         // todo: handle support for typed members
         if (rawSegment && rawSegment[0]['xbrldi:typedMember']) {
-            logger.error('skipping typed member beacuse it is not supported');
+            logger.error(`skipping typed member beacuse it is not supported filing ${filing._id} company ${company._id}. bailing!`);
         }
 
         const segment = rawSegment
@@ -165,7 +169,7 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
             && formatContextSegment(rawSegment[0]);
 
         formattedContexts.push({
-            label: context['$'].id && context['$'].id.toLowerCase(),
+            label: context.$.id && context.$.id.toLowerCase(),
             filing,
             company,
             segment,
@@ -176,7 +180,7 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
     return formattedContexts;
 }
 
-function formatContextDate(contextPeriod) {
+function formatContextDate(contextPeriod, filing) {
     if (!contextPeriod) {
         throw new Error('context period is missing');
     }
@@ -195,9 +199,9 @@ function formatContextDate(contextPeriod) {
         type,
         value,
         quarter: getQuarterReported(value, type),
-        year: getYearReported(value, type)
+        year: getYearReported(value, type),
+        fiscalYear: moment(filing.period).year()
     };
-
 }
 
 function formatContextSegment(segment = {}) {
@@ -264,7 +268,7 @@ module.exports.formatLinkbaseArcs = (name, arcs) => {
             type
         });
     }
-
+    
     return formattedArcs;
 }
 

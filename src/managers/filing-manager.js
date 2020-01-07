@@ -21,13 +21,21 @@ class FilingManager {
 	// from each as necessary
 	async getFactsFromFiling(job) {
 		const { _id, company } = job.data;
-		
+
 		await Filing.findOneAndUpdate({ _id }, { status: 'crawling' });
 		const documents = await FilingDocument
-			.find({
-				filing: _id,
-				type: { $in: Object.keys(filingDocumentParsers) }
-			})
+			.find(
+				{
+					filing: _id,
+					type: {
+						$in: Object.keys(filingDocumentParsers)
+					}
+				},
+				{
+					_id: 1,
+					type: 1
+				}
+			)
 			.lean();
 
 		logger.info(`found ${documents && documents.length} documents from filing ${_id} company ${company}`)
@@ -42,6 +50,7 @@ class FilingManager {
 
 			const filteredDocuments = documents.filter(d => d.type === documentType);
 			if (!filteredDocuments.length) {
+				logger.warn(`no documents found for type ${documentType} for filing ${_id} company ${company}`);
 				continue;
 			}
 
@@ -53,12 +62,13 @@ class FilingManager {
 		await Filing.findOneAndUpdate({ _id }, { status: 'crawled' });
 	}
 
-	// singular form of getFactsFromFiling. simply gets all of the facts
-	// from a 
+	// singular form of getFactsFromFiling. simply gets all of the facts from a document
 	async getFactsFromFilingDocument(documentId) {
 		const document = await FilingDocument.findOne({ _id: documentId });
 		const { fileUrl, company, status, statusReason, _id, filing, type } = document;
 		let elements;
+
+		logger.info(`crawling filingDocument ${_id} type ${type} for facts company ${company} filing ${filing}`);
 
 		// read from local archive if exists
 		if (process.env.ARCHIVE_LOCATION && ['downloaded', 'crawled'].includes(status)) {
@@ -70,7 +80,7 @@ class FilingManager {
 			const response = await requestAsync({ url: fileUrl, method: 'GET' });
 			elements = response.body;
 		}
-		
+
 		await FilingDocument.findOneAndUpdate({ _id }, { status: 'crawling' });
 		elements = await parseStringAsync(elements, parserOptions.filingDocument);
 
@@ -79,7 +89,7 @@ class FilingManager {
 		await filingDocumentParser(elements, filing, company);
 
 		const updatedDocument = await FilingDocument.findOneAndUpdate({ _id }, { status: 'crawled' });
-		logger.info(`finished crawling filingDocument ${updatedDocument._id} for facts company ${company} filing ${filing}`);
+		logger.info(`finished crawling filingDocument ${_id} type ${type} for facts company ${company} filing ${filing}`);
 	}
 }
 
