@@ -7,6 +7,9 @@ const { Operation } = require('@postilion/pubsub');
 const FilingManager = require('./managers/filing-manager');
 const filingManager = new FilingManager();
 
+const StatementManager = require('./managers/statement-manager');
+const statementManager = new StatementManager();
+
 module.exports = [
 	{
 		name: 'ExtractFactsFromFiling',
@@ -27,5 +30,19 @@ module.exports = [
 			}
 		],
 		options: {},
-	}
+	},
+	// {
+	// 	name: 'ExtractStatementsFromFiling',
+	// 	model: models.Filing,
+	// 	operation: Operation.update,
+	// 	handler: statementManager.getStatementsFromFiling,
+	// 	filters: [
+	// 		// {
+	// 		// 	$match: {
+	// 		// 		status: 'crawled'
+	// 		// 	}
+	// 		// }
+	// 	],
+	// 	options: {},
+	// }
 ];

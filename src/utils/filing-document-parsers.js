@@ -29,7 +29,9 @@ module.exports = {
 
         return newFacts;
     },
-    calculation: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'calculation'),
+    calculation: async (elements, filing, company) => {
+        await formatNamedLinkbase(elements, filing, company, 'calculation')
+    },
     definition: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'definition'),
     label: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'label'),
     presentation: async (elements, filing, company) => await formatNamedLinkbase(elements, filing, company, 'presentation')
@@ -41,6 +43,8 @@ async function formatNamedLinkbase(elements, filing, company, documentType) {
     let formattedLinks = [];
     const links = elements[`link:${documentType}Link`] || elements[`${documentType}Link`];
     for (let link of links) {
+        // link role that needs to be mapped back to
+        // a gaap identifier
         const linkRole = link.$['xlink:role'];
         const name = linkRole.split('/').pop();
 

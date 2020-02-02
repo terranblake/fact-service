@@ -20,6 +20,11 @@ module.exports.formatFacts = async (elements, contexts, units, filing, company) 
     let formattedFacts = [];
 
     for (let element in elements) {
+        if (['xbrli:context', 'xbrli:unit', '$'].includes(element)) {
+            logger.info(`skipping previously formatted element ${element} filing ${filing} company ${company}`);
+            continue;
+        }
+
         if (!element.includes(':')) {
             logger.debug(`unable to parse facts from element ${element} because it has no prefix`);
             continue;
@@ -141,7 +146,7 @@ module.exports.formatUnits = (rawUnits) => {
     return formattedUnits;
 }
 
-module.exports.formatContexts = async (extensionContexts, filing, company) => {
+module.exports.formatContexts = async (extensionContexts, filing) => {
     let formattedContexts = [];
     for (let context of extensionContexts) {
         const entity = (context["xbrli:entity"] || context.entity)[0];
@@ -152,7 +157,7 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
         // that something needs to be addressed
         const rawSegment = (entity["xbrli:segment"] || entity.segment);
         if (rawSegment && rawSegment.length > 1) {
-            logger.error(`more than 1 segment found for filing ${filing._id} company ${company._id}. bailing!`);
+            logger.error(`more than 1 segment found for filing ${filing && filing._id} bailing!`);
             continue;
         }
 
@@ -160,7 +165,7 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
 
         // todo: handle support for typed members
         if (rawSegment && rawSegment[0]['xbrldi:typedMember']) {
-            logger.error(`skipping typed member beacuse it is not supported filing ${filing._id} company ${company._id}. bailing!`);
+            logger.error(`skipping typed member beacuse it is not supported filing ${filing && filing._id} bailing!`);
         }
 
         const segment = rawSegment
@@ -171,7 +176,6 @@ module.exports.formatContexts = async (extensionContexts, filing, company) => {
         formattedContexts.push({
             label: context.$.id && context.$.id.toLowerCase(),
             filing,
-            company,
             segment,
             date,
         });
