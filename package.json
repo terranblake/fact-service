@@ -16,7 +16,7 @@
     "@postilion/pubsub": "github:terranblake/pubsub#master",
     "@postilion/stores": "github:terranblake/stores#master",
     "@postilion/utils": "github:terranblake/utils#master",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "request": "^2.88.0",
     "xml2js": "^0.4.23"
   }
